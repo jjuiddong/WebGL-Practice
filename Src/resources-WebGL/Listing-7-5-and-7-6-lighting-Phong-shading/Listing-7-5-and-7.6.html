@@ -603,6 +603,7 @@ function drawTable(){
 
 
 function draw(currentTime) { 
+  currentTime = undefined;
   pwgl.requestId = requestAnimFrame(draw);
   if (currentTime === undefined) {
     currentTime = Date.now();

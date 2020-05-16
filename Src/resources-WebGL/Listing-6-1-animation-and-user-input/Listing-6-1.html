@@ -1,4 +1,4 @@
-﻿<!DOCTYPE HTML> 
+﻿  <!DOCTYPE HTML> 
 <html lang="en"> 
 <head>
 <title>Listing 6-1, Animated WebGL Scene with Key Input.</title>
@@ -433,7 +433,9 @@ function drawTable(){
 }
 
 
-function draw(currentTime) { 
+function draw() {
+  var currentTime = undefined;
+
   pwgl.requestId = requestAnimFrame(draw);
   if (currentTime === undefined) {
     currentTime = Date.now();
@@ -482,6 +484,7 @@ function draw(currentTime) {
     // First move the box vertically from its original position on top of
     // the table (where y = 2.7) to 5 units above the floor (y = 5).
     // Let this movement take 3 seconds
+    var dt = (currentTime - pwgl.animationStartTime);
     pwgl.y = 2.7 + (currentTime - pwgl.animationStartTime)/3000 * (5.0-2.7);
   }
   else {       

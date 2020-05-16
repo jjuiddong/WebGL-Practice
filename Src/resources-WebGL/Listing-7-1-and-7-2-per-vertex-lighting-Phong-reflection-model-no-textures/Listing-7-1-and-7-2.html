@@ -7,7 +7,7 @@
 <script src="webgl-utils.js"></script>
 <meta charset="utf-8"> 
 
-<script id="shader-vs" type="x-shader/x-vertex">  
+<script id="shader-vs" type="x-shader/x-vertex"> 
   // Vertex shader implemented to perform lighting according to the 
   // Phong reflection model. 
   attribute vec3 aVertexPosition;
@@ -454,6 +454,7 @@ function drawTable(){
 }
 
 function draw(currentTime) { 
+  currentTime = undefined;
   pwgl.requestId = requestAnimFrame(draw);
   if (currentTime === undefined) {
     currentTime = Date.now();
