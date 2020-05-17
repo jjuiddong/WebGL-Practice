@@ -1,0 +1,403 @@
+﻿<!DOCTYPE HTML> 
+<html lang="en"> 
+<head>
+    <title>WebGL Tetris</title>
+    <script src="webgl-debug.js"></script>
+    <script type="text/javascript" src="glMatrix.js"></script>
+    <script src="webgl-utils.js"></script>
+    <script src="phong-shader.js"></script>
+    <script src="pos-shader.js"></script>
+    <script src="pos-norm-shader.js"></script>
+    <script src="pos-norm-col-shader.js"></script>
+    <script src="cube-geo.js"></script>
+    <meta charset="utf-8">
+</head>
+
+<body onload="startup();">
+  <canvas id="glCanvas" style="width=100%; height=100%"></canvas>
+  <div id="fps-counter">
+    FPS: <span id="fps">--</span>
+  </div>
+
+
+<script type="text/javascript">
+
+  // globals
+  var gl;
+  var pwgl = {};
+
+  // model
+  var ground = {};
+  var cube = {};
+
+  //shader
+  var posShader = {}; // pos
+  var posColShader = {}; // pos + color
+  var pnShader = {}; // pos + normal
+  var pncShader = {}; // pos + normal + color
+
+
+  // Keep track of ongoing image loads to be able to handle lost context
+  pwgl.ongoingImageLoads = []; 
+  var canvas;
+
+  function createGLContext(canvas) {
+    var names = ["webgl", "experimental-webgl"];
+    var context = null;
+    for (var i=0; i < names.length; i++) {
+      try {
+        context = canvas.getContext(names[i]);
+      } catch(e) {}
+      if (context) {
+        break;
+      }
+    }
+    if (context) {
+      context.viewportWidth = window.innerWidth-30;
+      context.viewportHeight = window.innerHeight-80;
+      canvas.width = window.innerWidth-30;
+      canvas.height = window.innerHeight-80;
+    } else {
+      alert("Failed to create WebGL context!");
+    }
+    return context;
+  }
+
+
+  // load shader from custom shader object
+  function loadShader(shaderProgram, shaderCode) {
+
+    if (shaderCode.vertexShader)
+    {
+      var shader = gl.createShader(gl.VERTEX_SHADER);
+      gl.shaderSource(shader, shaderCode.vertexShader);
+      gl.compileShader(shader);
+     
+       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS) && 
+           !gl.isContextLost()) {
+        alert(gl.getShaderInfoLog(shader));
+      }
+      else
+      {
+        gl.attachShader(shaderProgram, shader);
+      }
+    }
+
+    if (shaderCode.fragmentShader)
+    {
+      var shader = gl.createShader(gl.FRAGMENT_SHADER);
+      gl.shaderSource(shader, shaderCode.fragmentShader);
+      gl.compileShader(shader);
+     
+       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS) &&
+        !gl.isContextLost()) {
+        alert(gl.getShaderInfoLog(shader));
+      }
+      else
+      {
+        gl.attachShader(shaderProgram, shader);
+      }
+    }
+
+    gl.linkProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS) &&
+        !gl.isContextLost()) {
+      alert("Failed to link shaders: " + gl.getProgramInfoLog(shaderProgram));
+    }
+  }
+
+
+  function setupShaders() {
+
+    // load PhongShader
+    {
+      // var shaderProgram = gl.createProgram();
+      // loadShader(shaderProgram, PhongShader);
+      // gl.useProgram(shaderProgram);
+
+      // posColShader.pos = gl.getAttribLocation(shaderProgram, "aVertexPosition"); 
+      // posColShader.col = gl.getAttribLocation(shaderProgram, "aVertexColor"); 
+      // gl.enableVertexAttribArray(posColShader.pos);
+      // gl.enableVertexAttribArray(posColShader.col);
+    }
+
+
+    // load pos shader
+    {
+      var shaderProgram = gl.createProgram();
+      loadShader(shaderProgram, PosShader);
+
+      gl.useProgram(shaderProgram);
+      posShader.program = shaderProgram;
+      posShader.pos = gl.getAttribLocation(shaderProgram, "aVertexPosition"); 
+      posShader.mView = gl.getUniformLocation(shaderProgram, "uMVMatrix");      
+      posShader.mProj = gl.getUniformLocation(shaderProgram, "uPMatrix");
+    }
+
+    // load pos-norm shader
+    {
+        var shaderProgram = gl.createProgram();
+        loadShader(shaderProgram, PosNormShader);
+
+        gl.useProgram(shaderProgram);
+        pnShader.program = shaderProgram;
+        pnShader.pos = gl.getAttribLocation(shaderProgram, "aVertexPosition"); 
+        pnShader.norm = gl.getAttribLocation(shaderProgram, "aVertexNormal"); 
+        pnShader.mView = gl.getUniformLocation(shaderProgram, "uMVMatrix");      
+        pnShader.mProj = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        pnShader.mNInv = gl.getUniformLocation(shaderProgram, "uNMatrix");      
+
+        pnShader.uLightPos = gl.getUniformLocation(shaderProgram, "uLightPosition");
+        pnShader.uAmbient = gl.getUniformLocation(shaderProgram, "uAmbientLightColor");  
+        pnShader.uDiffuse = gl.getUniformLocation(shaderProgram, "uDiffuseLightColor");
+        pnShader.uSpecular = gl.getUniformLocation(shaderProgram, "uSpecularLightColor");
+    }
+
+    // load pos-norm-color shader
+    {
+      var shaderProgram = gl.createProgram();
+      loadShader(shaderProgram, PosNormColShader);
+
+      gl.useProgram(shaderProgram);
+      pncShader.program = shaderProgram;
+      pncShader.pos = gl.getAttribLocation(shaderProgram, "aVertexPosition"); 
+      pncShader.norm = gl.getAttribLocation(shaderProgram, "aVertexNormal"); 
+      pncShader.col = gl.getAttribLocation(shaderProgram, "aVertexColor"); 
+      pncShader.mView = gl.getUniformLocation(shaderProgram, "uMVMatrix");      
+      pncShader.mProj = gl.getUniformLocation(shaderProgram, "uPMatrix");
+      pncShader.mNInv = gl.getUniformLocation(shaderProgram, "uNMatrix");      
+
+      pncShader.uLightPos = gl.getUniformLocation(shaderProgram, "uLightPosition");
+      pncShader.uAmbient = gl.getUniformLocation(shaderProgram, "uAmbientLightColor");  
+      pncShader.uDiffuse = gl.getUniformLocation(shaderProgram, "uDiffuseLightColor");
+      pncShader.uSpecular = gl.getUniformLocation(shaderProgram, "uSpecularLightColor");
+    }
+    
+    pwgl.modelViewMatrix = mat4.create();
+    pwgl.projectionMatrix = mat4.create();
+    pwgl.modelViewMatrixStack = [];
+  }
+
+
+  function loadImageForTexture(url, texture) {
+    var image = new Image();
+    image.onload = function() {
+      pwgl.ongoingImageLoads.splice(pwgl.ongoingImageLoads.indexOf(image), 1);
+      textureFinishedLoading(image, texture);
+    }
+    pwgl.ongoingImageLoads.push(image);
+    image.src = url;
+  }
+
+  function setupTextures() {
+  }
+
+
+  function setupGround() {
+    ground.pos = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, ground.pos);
+
+    var cnt = 100;
+    var w = 100.0;
+    var h = 100.0;
+
+    var buff = [];
+    for (var i=0; i<cnt; ++i)
+    {
+      // vertex x,y,z
+      buff.push(0.0);
+      buff.push(0.0);
+      buff.push(i);
+
+      // vertex x,y,z
+      buff.push(w);
+      buff.push(0.0);
+      buff.push(i);
+    }
+
+    for (var i=0; i<cnt; ++i)
+    {
+      // vertex x,y,z
+      buff.push(i);
+      buff.push(0);
+      buff.push(0);
+
+      // vertex x,y,z
+      buff.push(i);
+      buff.push(0);
+      buff.push(h);
+    }
+
+
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(buff), gl.STATIC_DRAW);
+    ground.itemSize = 3;
+    ground.numItems = cnt*4;
+  }
+
+
+    function setupCube() {
+        cube.pos = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, cube.pos);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CubeGeo.posBuff), gl.STATIC_DRAW);
+        cube.pos.itemSize = 3;
+        cube.pos.numItems = 24;
+
+        cube.norm = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, cube.norm);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CubeGeo.normBuff), gl.STATIC_DRAW);
+        cube.norm.itemSize = 3;
+        cube.norm.numItems = 24;
+
+        cube.col = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, cube.col);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(CubeGeo.colorBuff), gl.STATIC_DRAW);
+        cube.col.itemSize = 4;
+        cube.col.numItems = 24;
+
+        cube.index = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.index);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(CubeGeo.indices), gl.STATIC_DRAW);
+        cube.index.itemSize = 1;
+        cube.index.numItems = 36;
+    }
+
+
+    function setupBuffers() {
+        setupGround();
+        setupCube();
+    }
+
+
+  function setupLights() {
+    gl.uniform3fv(pwgl.uniformLightPositionLoc, [0.0, 20.0, 0.0]);
+    gl.uniform3fv(pwgl.uniformAmbientLightColorLoc, [0.2, 0.2, 0.2]);
+    gl.uniform3fv(pwgl.uniformDiffuseLightColorLoc, [0.7, 0.7, 0.7]);
+    gl.uniform3fv(pwgl.uniformSpecularLightColorLoc, [0.8, 0.8, 0.8]);
+  }
+
+
+  function drawGround() {
+    gl.useProgram(posShader.program);
+    gl.uniformMatrix4fv(posShader.mView, false, pwgl.modelViewMatrix);
+    gl.uniformMatrix4fv(posShader.mProj, false, pwgl.projectionMatrix);
+    gl.bindBuffer(gl.ARRAY_BUFFER, ground.pos);
+    gl.vertexAttribPointer(posShader.pos, ground.itemSize, gl.FLOAT, false, 0, 0); 
+    gl.enableVertexAttribArray(posShader.pos);
+    gl.drawArrays(gl.LINES, 0, ground.numItems);
+  }
+
+    function drawCube(shader, flag) {
+        gl.useProgram(shader.program);
+
+        // update camera matrix (view, projection matrix)
+        gl.uniformMatrix4fv(shader.mView, false, pwgl.modelViewMatrix);
+        gl.uniformMatrix4fv(shader.mProj, false, pwgl.projectionMatrix);
+
+        // update lighting
+        gl.uniform3fv(shader.uLightPos, [0.0, 20.0, 0.0]);
+        gl.uniform3fv(shader.uAmbient, [0.2, 0.2, 0.2]);
+        gl.uniform3fv(shader.uDiffuse, [0.7, 0.7, 0.7]);
+        gl.uniform3fv(shader.uSpecular, [0.8, 0.8, 0.8]);
+
+        // update normal matrix (model space -> view space)
+        var normalMatrix = mat3.create();
+        mat4.toInverseMat3(pwgl.modelViewMatrix, normalMatrix);
+        mat3.transpose(normalMatrix);
+        gl.uniformMatrix3fv(shader.mNInv, false, normalMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, cube.pos);
+        gl.vertexAttribPointer(shader.pos, cube.pos.itemSize, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, cube.norm);
+        gl.vertexAttribPointer(shader.norm, cube.norm.itemSize, gl.FLOAT, false, 0, 0);
+
+        if ((flag != undefined) && (flag == 1)) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, cube.col);
+            gl.enableVertexAttribArray(shader.col);
+            gl.vertexAttribPointer(shader.col, cube.col.itemSize, gl.FLOAT, false, 0, 0);
+        }
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.index);
+
+        gl.enableVertexAttribArray(shader.pos);
+        gl.enableVertexAttribArray(shader.norm);
+        gl.drawElements(gl.TRIANGLES, cube.index.numItems, gl.UNSIGNED_SHORT, 0);
+    }
+
+
+    function draw(currentTime) { 
+        currentTime = undefined;
+        pwgl.requestId = requestAnimFrame(draw);
+        if (currentTime === undefined) {
+            currentTime = Date.now();
+        }
+    
+        // Update FPS if a second or more has passed since last FPS update
+        if(currentTime - pwgl.previousFrameTimeStamp >= 1000) {
+            pwgl.fpsCounter.innerHTML = pwgl.nbrOfFramesForFPS;
+            pwgl.nbrOfFramesForFPS = 0;
+            pwgl.previousFrameTimeStamp = currentTime;
+        }
+   
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        mat4.perspective(60, gl.viewportWidth / gl.viewportHeight, 1, 1000.0, pwgl.projectionMatrix);
+        mat4.identity(pwgl.modelViewMatrix);
+        mat4.lookAt([20, 20, -15],[0, 0, 20], [0, 1,0], pwgl.modelViewMatrix);
+    
+        drawGround();
+        drawCube(pncShader, 1);
+
+        pwgl.nbrOfFramesForFPS++;
+    }
+
+
+  function handleContextLost(event) {
+    event.preventDefault();
+    cancelRequestAnimFrame(pwgl.requestId);
+     // Ignore all ongoing image loads by removing
+     // their onload handler
+     for (var i = 0; i < pwgl.ongoingImageLoads.length; i++) {
+       pwgl.ongoingImageLoads[i].onload = undefined;
+     }
+     pwgl.ongoingImageLoads = [];
+  }
+
+
+  function init() {
+    setupShaders(); 
+    setupBuffers();
+    setupLights();  
+    setupTextures();
+    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    gl.enable(gl.DEPTH_TEST);
+    
+    // Initialize some variables related to the animation
+    pwgl.animationStartTime = undefined;
+    pwgl.nbrOfFramesForFPS = 0;
+    pwgl.previousFrameTimeStamp = Date.now();
+  }
+
+   
+  function handleContextRestored(event) {
+    init();
+    pwgl.requestId = requestAnimFrame(draw,canvas);
+  }
+
+
+  function startup() {
+    canvas = document.getElementById("glCanvas");
+    canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);  
+    canvas.addEventListener('webglcontextlost', handleContextLost, false);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored, false);  
+    gl = createGLContext(canvas);
+    init();  
+    pwgl.fpsCounter = document.getElementById("fps");
+    draw();
+  }
+  </script>
+</body>
+
+
+</html>
