@@ -234,9 +234,9 @@
         _ground.pos = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, _ground.pos);
 
-        var cnt = 100;
-        var w = 100.0;
-        var h = 100.0;
+        var cnt = 150;
+        var w = 150.0;
+        var h = 150.0;
 
         var buff = [];
         for (var i=0; i<cnt; ++i)
@@ -317,7 +317,7 @@
         gl.useProgram(_posShader.program);
 
         mat4.identity(pwgl.world);
-        mat4.translate(pwgl.world, [0,0,-50]);
+        mat4.translate(pwgl.world, [-25,0,-50]);
         gl.uniformMatrix4fv(_posShader.mWorld, false, pwgl.world);
         gl.uniformMatrix4fv(_posShader.mView, false, pwgl.view);
         gl.uniformMatrix4fv(_posShader.mProj, false, pwgl.proj);
