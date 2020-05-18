@@ -1,32 +1,30 @@
 //
 // Shader
-// Attribute : Position + Normal + Color
+// Attribute : Position + Normal
 //
 
-PosNormColShader = {
+PosNormShader = {
 
   vertexShader: [
     "attribute vec3 aVertexPosition;",
     "attribute vec3 aVertexNormal;",
-    "attribute vec4 aVertexColor;",
 
-    "uniform mat4 uMVMatrix;",
-    "uniform mat4 uPMatrix;",
-    "uniform mat3 uNMatrix;",
+    "uniform mat4 mWorld;", // world matrix
+    "uniform mat4 mView;", // view matrix
+    "uniform mat4 mProj;", // projection matrix
+    "uniform mat3 mNorm;", // normal matrix
 
     "varying vec3 vNormalEye;",
     "varying vec3 vPositionEye3;",
-    "varying vec4 vColor;",
     
     "void main() {",
-      "vec4 vertexPositionEye4 = uMVMatrix * vec4(aVertexPosition, 1.0);",
+      "vec4 vertexPositionEye4 = mView * mWorld * vec4(aVertexPosition, 1.0);",
       "vPositionEye3 = vertexPositionEye4.xyz / vertexPositionEye4.w;",
 
       // Transform the normal to eye coordinates and send to fragment shader
-      "vNormalEye = normalize(uNMatrix * aVertexNormal);",
-      "vColor = aVertexColor;",
+      "vNormalEye = normalize(mNorm * aVertexNormal);",
 
-      "gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);",
+      "gl_Position = mProj * mView * mWorld * vec4(aVertexPosition, 1.0);",
 
     "}",
 
@@ -42,7 +40,6 @@ PosNormColShader = {
    
     "varying vec3 vNormalEye;",
     "varying vec3 vPositionEye3;",
-    "varying vec4 vColor;",
     
     "uniform vec3 uLightPosition;",
     "uniform vec3 uAmbientLightColor;",
@@ -75,12 +72,11 @@ PosNormColShader = {
       
       // Sum up all three reflection components
       "vec3 lightWeighting = uAmbientLightColor + ",
-                            "uDiffuseLightColor * diffuseLightWeighting + ",
-                            "uSpecularLightColor * specularLightWeighting;",
-
+                            "uDiffuseLightColor * diffuseLightWeighting;",
+                            //"uSpecularLightColor * specularLightWeighting;",
       // Sample the texture
       // modulate texel color with lightweigthing and write as final color
-      "gl_FragColor = vec4(vColor.rgb * lightWeighting.rgb, vColor.a);",
+      "gl_FragColor = vec4(lightWeighting.rgb, 1);",
     "}",
 
   ].join('\n')
