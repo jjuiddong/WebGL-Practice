@@ -11,6 +11,6 @@ WebGL Practice with Java Script, Eclipse
   - <img src="https://github.com/jjuiddong/WebGL-Practice/blob/master/Doc/tetris.jpg?raw=true" width=300/>
 - Tetris Sample (Java Script + WebGL + ImGui)
   - https://github.com/flyover/imgui-js
-  - http://jjuiddong.co.kr/imgui-js/tetris_webgl_imgui/
+  - http://jjuiddong.co.kr/webgl/tetris_webgl_imgui/
   - <img src="https://github.com/jjuiddong/WebGL-Practice/blob/master/Doc/tetris_js_webgl_imgui.jpg?raw=true" width=300/>
 
