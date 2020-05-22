@@ -1,5 +1,5 @@
 # WebGL-Practice
-WebGL Practice with Java Script, Eclipse
+WebGL Practice with Java Script, VisualStudio, Sublime Text
  - Book Source Code, Tetris Sample
     - Java Script
     - WebGL
