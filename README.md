@@ -6,7 +6,7 @@ WebGL Practice with Java Script, VisualStudio, Sublime Text
     - ImGui (https://github.com/flyover/imgui-js)
     - Three.js
 - Professional WebGL Programming Book Sample
-  - <img src="https://github.com/jjuiddong/WebGL-Practice/blob/master/Doc/webglbook2.jpg" width=300/>
+  - <img src="https://github.com/jjuiddong/WebGL-Practice/blob/master/Doc/webglbook2.jpg?raw=true" width=300/>
 - Tetris Sample (Java Script + WebGL)
   - <img src="https://github.com/jjuiddong/WebGL-Practice/blob/master/Doc/tetris.jpg?raw=true" width=300/>
 - Tetris Sample (Java Script + WebGL + ImGui)
